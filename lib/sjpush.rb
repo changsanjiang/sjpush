@@ -1,6 +1,5 @@
 #require "sjpush/version"
-
-# Your code goes here...
+#!/usr/bin/env ruby
 puts <<-DESC
 ===============================================
 请输入操作序号:
