@@ -5,7 +5,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "sjpush"
-  spec.version       = "0.0.3"   #Sjpush::VERSION
+  spec.version       = "0.0.4"   #Sjpush::VERSION
   spec.authors       = ["SanJiang"]
   spec.email         = ["changsanjiang@gmail.com"]
 
@@ -14,7 +14,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = "https://github.com/changsanjiang/sjpush"
   spec.license       = "MIT"
 
-  spec.files   		   = ["lib/sjpush.rb"]
+  spec.files   		   = ["lib/sjpush.rb", "lib/sjScript.rb", "lib/sjProtocol.rb"]
   spec.executables << 'sjpush'
 
   # Prevent pushing this gem to RubyGems.org. To allow pushes either set the 'allowed_push_host'

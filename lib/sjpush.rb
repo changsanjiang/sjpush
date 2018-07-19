@@ -1,5 +1,6 @@
 #require "sjpush/version"
 #!/usr/bin/env ruby
+
 puts <<-DESC
 ===============================================
 请输入操作序号:
@@ -8,6 +9,10 @@ puts <<-DESC
 3. 添加新的标签(git tag -a '..' -m '..')
 4. pod发布(pod repo push ..repo ..podspec)
 5. 删除标签(git -d .., git push origin :..)
+
+补全代码:
+-1. 自动写协议
+-2. 自动补全懒加载
 
 输入`exit`退出脚本
 ===============================================
@@ -18,6 +23,9 @@ $seq_git_push_master    = 2
 $seq_git_add_tag        = 3
 $seq_pod_release        = 4
 $seq_git_delete_tag     = 5
+
+$seq_lazy_protocol      = -1
+$seq_lazy_property      = -2
 
 seq = gets
 
@@ -126,14 +134,10 @@ def considerNextTask(beforeSeq, git)
         whetherToPushMaster(git)
         whetherAddNewTag(git)
         whetherReleasePod(git)
-    end
-    
-    if beforeSeq == $seq_git_push_master
+    elsif beforeSeq == $seq_git_push_master
         whetherAddNewTag(git)
         whetherReleasePod(git)
-    end
-    
-    if beforeSeq == $seq_git_add_tag
+    elsif beforeSeq == $seq_git_add_tag
         whetherReleasePod(git)
     end
 end
@@ -144,14 +148,20 @@ def handleSeq(seq)
     git = Git.new
     if seq == $seq_git_commit
         git.commit
-        elsif seq == $seq_git_push_master
+    elsif seq == $seq_git_push_master
         git.pushMaster
-        elsif seq == $seq_git_add_tag
+    elsif seq == $seq_git_add_tag
         git.addNewTag
-        elsif seq == $seq_pod_release
+    elsif seq == $seq_pod_release
         git.podRelease
-        elsif seq == $seq_git_delete_tag
+    elsif seq == $seq_git_delete_tag
         git.deleteTag
+    elsif seq == $seq_lazy_protocol
+        require 'sjProtocol'
+        exit
+    elsif seq == $seq_lazy_property
+        require 'sjScript'
+        exit
     end
     
     considerNextTask(seq, git)
