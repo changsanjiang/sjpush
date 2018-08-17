@@ -75,7 +75,7 @@ class Git
             puts "已退出, 未搜索到 podsspec 文件"
             exit
         end
-        appendExeorder "pod repo push lanwuzheRepo #{currentDir} --allow-warnings"
+        appendExeorder "pod repo push lanwuzheRepo #{currentDir} --allow-warnings --use-libraries"
     end
     
     def exec
