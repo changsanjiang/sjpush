@@ -41,6 +41,24 @@ class ActionHandler
             
             puts "podspec 版本已更新"
         end
+
+        def getPodspecVersion()
+            s = ActionHandler.getPodspec()
+            if s.nil?
+                puts "已退出, 未搜索到 podspec 文件"
+                exit
+            end
+            
+            File.new(s, "r").each_line do |line|
+                regex = "s.version([^']+)'([^']+)'*"
+                if /#{regex}/ =~ line
+                    @version = $2.to_i
+                    break
+                end
+            end
+            
+            return @version
+        end
     end
 
     def initialize()
@@ -84,6 +102,13 @@ class ActionHandler
         addCommand "git tag -a '#{newTag}' -m '#{submit}'"
         addCommand "git push origin #{newTag}"
     end
+
+    def addNewTagForPodspecVersionAction()
+        version = ActionHandler.getPodspecVersion()
+        submit = submitInfoAction()
+        addCommand "git tag -a '#{version}' -m '#{submit}'"
+        addCommand "git push origin #{version}"
+    end
     
     def deleteTagAction()
         puts "请输入要删除的标签:"
@@ -118,28 +143,31 @@ class ActionHandler
     def handleSeq(seq)
         if seq == $seq_commit.to_i
             commitAction()
-            elsif seq == $seq_push_current_branch.to_i
+        elsif seq == $seq_push_current_branch.to_i
             pushAction()
-            elsif seq == $seq_add_tag.to_i
-            addNewTagAction()
-            elsif seq == $seq_release.to_i
+        elsif seq == $seq_add_tag.to_i
+            puts "\n是否使用Podspec中的版本作为标签? [ Yes / NO ]"
+            r = gets
+            if r.casecmp("Yes") == 1
+                addNewTagForPodspecVersionAction()
+            else
+                addNewTagAction()
+            end
+        elsif seq == $seq_release.to_i
             podReleaseAction()
-            elsif seq == $seq_delete_tag.to_i
+        elsif seq == $seq_delete_tag.to_i
             deleteTagAction()
-            elsif seq == $seq_update_podspec_version.to_i
+        elsif seq == $seq_update_podspec_version.to_i
             ActionHandler.updatePodspecVerAction()
-            elsif seq == $seq_lazy_protocol.to_i
+        elsif seq == $seq_lazy_protocol.to_i
             require 'sjProtocol'
             exit
-            elsif seq == $seq_lazy_property.to_i
+        elsif seq == $seq_lazy_property.to_i
             require 'sjScript'
             exit
         end
         
         nextCommand(seq)
-        
-        puts "====fsdfds======="
-        executeCommands()
     end
 
 
@@ -150,15 +178,15 @@ class ActionHandler
             puts "\n是否推送到 #{ActionHandler.getCurBranch()}? [ Yes / NO ]"
             r = gets
             if r.casecmp("Yes") == 1
-                handleSeq($seq_push_current_branch)
+                handleSeq($seq_push_current_branch.to_i)
             end
-            elsif beforeSeq == $seq_push_current_branch.to_i
+        elsif beforeSeq == $seq_push_current_branch.to_i
             puts "\n是否添加标签? [ Yes / NO ]"
             r = gets
             if r.casecmp("Yes") == 1
                 handleSeq($seq_add_tag.to_i)
             end
-            elsif beforeSeq == $seq_add_tag.to_i
+        elsif beforeSeq == $seq_add_tag.to_i
             # 询问是否发布pod
             # Pod - Release
             puts "\n是否发布pod版本? [ Yes / NO ]"
@@ -166,7 +194,7 @@ class ActionHandler
             if r.casecmp("Yes") == 1
                 handleSeq($seq_release.to_i)
             end
-            elsif beforeSeq == $seq_update_podspec_version.to_i
+        elsif beforeSeq == $seq_update_podspec_version.to_i
             puts "\n是否提交变更? [ Yes / NO ]"
             r = gets
             if r.casecmp("Yes") == 1
@@ -211,3 +239,4 @@ exit if seq.casecmp('exit') == 1
 handler = ActionHandler.new
 puts "\n\n"
 handler.handleSeq(seq.to_i)
+handler.executeCommands()
