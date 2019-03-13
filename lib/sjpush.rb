@@ -1,14 +1,45 @@
 #require "sjpush/version"
 #!/usr/bin/env ruby
 
-class Git
+class ActionHandler
     # 定义类方法
     class << self
         # 获取当前的分支
-        def getBranch()
+        def getCurBranch()
             # strip! 删除开头和末尾的空白字符
             commands = IO.readlines(".git/HEAD").first.strip!;
             commands.sub!(/ref: refs\/heads\//, "")
+        end
+    end
+
+    class << self
+        def getPodspec()
+            Dir["*.podspec"].last
+        end
+
+        def updatePodspecVerAction()
+            s = ActionHandler.getPodspec()
+            if s.nil?
+                puts "已退出, 未搜索到 podspec 文件"
+                exit
+            end
+            
+            contents = String.new
+            File.new(s, "r").each_line do |line|
+                regex = "s.version([^']+)'([^']+)'*"
+                if /#{regex}/ =~ line
+                    v = ($2.to_i + 1).to_s
+                    regex = "'[^']+'"
+                    line = line.sub!(/#{regex}/, "'#{v}'")
+                end
+                
+                contents += line
+            end
+            file = File.new(s, "w")
+            file.syswrite(contents)
+            file.close
+            
+            puts "podspec 版本已更新"
         end
     end
 
@@ -22,13 +53,13 @@ class Git
     def addCommand(order)
         if @commands.length == 0
             @commands << order
-            else
+        else
             @commands << " && #{order}"
         end
     end
 
     def submitInfoAction()
-        if @commitInfo == nil
+        if @commitInfo.nil?
             puts "请输入提交信息:"
             @commitInfo = gets.strip!
         end
@@ -42,7 +73,7 @@ class Git
     end
     
     def pushAction()
-        addCommand "git push origin #{Git.getBranch()}"
+        addCommand "git push origin #{ActionHandler.getCurBranch()}"
     end
     
     def addNewTagAction()
@@ -62,15 +93,15 @@ class Git
     end
     
     def podReleaseAction()
-        currentDir = Dir["*.podspec"].last
-        if currentDir.nil?
+        s = ActionHandler.getPodspec()
+        if s.nil?
             puts "已退出, 未搜索到 podspec 文件"
             exit
         end
-        addCommand "pod repo push lanwuzheRepo #{currentDir} --allow-warnings --use-libraries"
+        addCommand "pod repo push lanwuzheRepo #{s} --allow-warnings --use-libraries"
     end
-    
-    def exec
+
+    def executeCommands
         puts <<-DESC
         
         
@@ -82,126 +113,101 @@ class Git
         system @commands
         puts "操作完成"
     end
-end
 
 
-class Pods
-    class << self
-        def updateSubspecVersion()
+    def handleSeq(seq)
+        if seq == $seq_commit.to_i
+            commitAction()
+            elsif seq == $seq_push_current_branch.to_i
+            pushAction()
+            elsif seq == $seq_add_tag.to_i
+            addNewTagAction()
+            elsif seq == $seq_release.to_i
+            podReleaseAction()
+            elsif seq == $seq_delete_tag.to_i
+            deleteTagAction()
+            elsif seq == $seq_update_podspec_version.to_i
+            ActionHandler.updatePodspecVerAction()
+            elsif seq == $seq_lazy_protocol.to_i
+            require 'sjProtocol'
+            exit
+            elsif seq == $seq_lazy_property.to_i
+            require 'sjScript'
+            exit
+        end
+        
+        nextCommand(seq)
+        
+        puts "====fsdfds======="
+        executeCommands()
+    end
+
+
+    def nextCommand(beforeSeq)
+        if beforeSeq == $seq_commit.to_i
+            # 询问是否推送到主干上
+            # ActionHandler - Push
+            puts "\n是否推送到 #{ActionHandler.getCurBranch()}? [ Yes / NO ]"
+            r = gets
+            if r.casecmp("Yes") == 1
+                handleSeq($seq_push_current_branch)
+            end
+            elsif beforeSeq == $seq_push_current_branch.to_i
+            puts "\n是否添加标签? [ Yes / NO ]"
+            r = gets
+            if r.casecmp("Yes") == 1
+                handleSeq($seq_add_tag.to_i)
+            end
+            elsif beforeSeq == $seq_add_tag.to_i
+            # 询问是否发布pod
+            # Pod - Release
+            puts "\n是否发布pod版本? [ Yes / NO ]"
+            r = gets
+            if r.casecmp("Yes") == 1
+                handleSeq($seq_release.to_i)
+            end
+            elsif beforeSeq == $seq_update_podspec_version.to_i
+            puts "\n是否提交变更? [ Yes / NO ]"
+            r = gets
+            if r.casecmp("Yes") == 1
+                handleSeq($seq_commit.to_i)
+            end
         end
     end
 end
 
-
-def whetherToPushOrigin(git)
-    # 询问是否推送到主干上
-    # Git - Push
-    puts "\n是否推送到 #{Git.getBranch()}? [ Yes / NO ]"
-    needPush = gets
-    if needPush.casecmp("Yes") != 1
-        git.exec
-        exit
-    end
-    git.pushAction()
-end
-
-def whetherAddNewTag(git)
-    # 询问是否添加新的标签
-    # Git - Add Tag
-    puts "\n是否添加标签? [ Yes / NO ]"
-    needAddTag = gets
-    if needAddTag.casecmp("Yes") != 1
-        git.exec
-        exit
-    end
-    git.addNewTagAction()
-end
-
-def whetherReleasePod(git)
-    # 询问是否发布pod
-    # Pod - Release
-    puts "\n是否发布pod版本? [ Yes / NO ]"
-    needRelease = gets
-    if needRelease.casecmp("Yes") != 1
-        git.exec
-        exit
-    end
-    git.podReleaseAction()
-end
-
-def considerNextTask(beforeSeq, git)
-    if beforeSeq == $seq_git_commit
-        handleSeq($seq_git_push_current_branch)
-    elsif beforeSeq == $seq_git_push_current_branch
-        handleSeq($seq_git_add_tag)
-    elsif beforeSeq == $seq_git_add_tag
-        handleSeq($seq_pod_release)
-    elsif beforeSeq == $seq_pod_updateSubspecVersion
-        handleSeq($seq_git_commit)
-    end
-end
-
 seqs = [
-$seq_git_commit                 = "1. 提交变更",
-$seq_git_push_current_branch    = "2. 推送到当前分支(#{Git.getBranch()})",
-$seq_git_add_tag                = "3. 添加新的标签",
-$seq_pod_release                = "4. pod发布(pod repo push ..repo ..podspec)",
-$seq_git_delete_tag             = "5. 删除标签",
-$seq_pod_updateSubspecVersion   = "6. subspec版本+1",
-]
-
-other = [
-$seq_lazy_protocol              = "7. 自动写协议",
-$seq_lazy_property              = "8. 自动补全懒加载",
+$seq_update_podspec_version = "0. Podspec版本+1",
+$seq_commit                 = "1. 提交变更",
+$seq_push_current_branch    = "2. 推送到当前分支(#{ActionHandler.getCurBranch()})",
+$seq_add_tag                = "3. 添加新的标签",
+$seq_release                = "4. pod发布(pod repo push ..repo ..podspec)",
+$seq_delete_tag             = "5. 删除标签",
+$seq_lazy_protocol          = "6. 自动写协议",
+$seq_lazy_property          = "7. 自动补全懒加载",
 ]
 
 require "pp"
 
 # - seqs -
-puts "请输入操作序号:"
-pp seqs
 puts "\n"
-
-# - other -
-puts "补全代码:"
-pp other
+puts "请输入操作序号:"
+puts "\n"
+seqs.each do |s|
+    puts s
+end
 puts "\n"
 
 # - exit -
 puts "输入`exit`退出脚本"
 
 puts "\n"
-puts "\033[31m================== 等待操作 ==================\033[0m\n"
+puts "================== 等待操作 =================="
 
 seq = gets
 
 exit if seq.casecmp('exit') == 1
 
-def handleSeq(seq)
-    git = Git.new
-    if seq == $seq_git_commit.to_i
-        git.commitAction()
-    elsif seq == $seq_git_push_current_branch.to_i
-        git.pushAction()
-    elsif seq == $seq_git_add_tag.to_i
-        git.addNewTagAction()
-    elsif seq == $seq_pod_release.to_i
-        git.podReleaseAction()
-    elsif seq == $seq_git_delete_tag.to_i
-        git.deleteTagAction()
-    elsif seq == $seq_pod_updateSubspecVersion.to_i
-        Pods.updateSubspecVersion()
-    elsif seq == $seq_lazy_protocol.to_i
-        require 'sjProtocol'
-        exit
-    elsif seq == $seq_lazy_property.to_i
-        require 'sjScript'
-        exit
-    end
-
-    considerNextTask(seq, git)
-    git.exec
-end
-
+handler = ActionHandler.new
 puts "\n\n"
-handleSeq(seq.to_i)
+handler.handleSeq(seq.to_i)
