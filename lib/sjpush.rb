@@ -1,81 +1,73 @@
 #require "sjpush/version"
 #!/usr/bin/env ruby
 
-puts <<-DESC
-===============================================
-请输入操作序号:
-1. 提交变更(git commit -m '..')
-2. 推送到主干上(git push origin master)
-3. 添加新的标签(git tag -a '..' -m '..')
-4. pod发布(pod repo push ..repo ..podspec)
-5. 删除标签(git -d .., git push origin :..)
-
-补全代码:
--1. 自动写协议
--2. 自动补全懒加载
-
-输入`exit`退出脚本
-===============================================
-DESC
-
-$seq_git_commit         = 1
-$seq_git_push_master    = 2
-$seq_git_add_tag        = 3
-$seq_pod_release        = 4
-$seq_git_delete_tag     = 5
-
-$seq_lazy_protocol      = -1
-$seq_lazy_property      = -2
-
-seq = gets
-
-exit if seq.casecmp('exit') == 1
-
 class Git
-    def initialize()
-        @content = String.new
-    end
-    
-    def appendExeorder(order)
-        if @content.length == 0
-            @content << order
-            else
-            @content << " && #{order}"
+    # 定义类方法
+    class << self
+        # 获取当前的分支
+        def getBranch()
+            # strip! 删除开头和末尾的空白字符
+            commands = IO.readlines(".git/HEAD").first.strip!;
+            commands.sub!(/ref: refs\/heads\//, "")
         end
     end
-    
-    def commit()
-        puts "请输入此次提交信息:"
-        @commitInfo = gets.strip!
-        appendExeorder "git add ."
-        appendExeorder "git commit -m '#{@commitInfo}'"
+
+    def initialize()
+        @commands = String.new
     end
     
-    def pushMaster()
-        appendExeorder "git push origin master"
+
+    # - Actions -
+
+    def addCommand(order)
+        if @commands.length == 0
+            @commands << order
+            else
+            @commands << " && #{order}"
+        end
+    end
+
+    def submitInfoAction()
+        if @commitInfo == nil
+            puts "请输入提交信息:"
+            @commitInfo = gets.strip!
+        end
+        return @commitInfo
+    end
+
+    def commitAction()
+        submit = submitInfoAction()
+        addCommand "git add ."
+        addCommand "git commit -m '#{submit}'"
     end
     
-    def addNewTag()
+    def pushAction()
+        addCommand "git push origin #{Git.getBranch()}"
+    end
+    
+    def addNewTagAction()
         puts "请输入新的标签:"
         newTag = gets.strip!
-        appendExeorder "git tag -a '#{newTag}' -m '#{@commitInfo}'"
-        appendExeorder "git push origin #{newTag}"
+        
+        submit = submitInfoAction()
+        addCommand "git tag -a '#{newTag}' -m '#{submit}'"
+        addCommand "git push origin #{newTag}"
     end
     
-    def deleteTag()
+    def deleteTagAction()
         puts "请输入要删除的标签:"
         tag = gets.strip!
-        appendExeorder "git tag -d #{tag}"
-        appendExeorder "git push origin :#{tag}"
+        addCommand "git tag -d #{tag}"
+        addCommand "git push origin :#{tag}"
     end
     
-    def podRelease()
+    def podReleaseAction()
         currentDir = Dir["*.podspec"].last
         if currentDir.nil?
-            puts "已退出, 未搜索到 podsspec 文件"
+            puts "已退出, 未搜索到 podspec 文件"
             exit
         end
-        appendExeorder "pod repo push lanwuzheRepo #{currentDir} --allow-warnings --use-libraries"
+        addCommand "pod repo push lanwuzheRepo #{currentDir} --allow-warnings --use-libraries"
     end
     
     def exec
@@ -87,22 +79,30 @@ class Git
         
         
         DESC
-        system @content
+        system @commands
         puts "操作完成"
     end
 end
 
 
-def whetherToPushMaster(git)
+class Pods
+    class << self
+        def updateSubspecVersion()
+        end
+    end
+end
+
+
+def whetherToPushOrigin(git)
     # 询问是否推送到主干上
     # Git - Push
-    puts "\n是否推送到 Master? [ Yes / NO ]"
+    puts "\n是否推送到 #{Git.getBranch()}? [ Yes / NO ]"
     needPush = gets
     if needPush.casecmp("Yes") != 1
         git.exec
         exit
     end
-    git.pushMaster
+    git.pushAction()
 end
 
 def whetherAddNewTag(git)
@@ -114,7 +114,7 @@ def whetherAddNewTag(git)
         git.exec
         exit
     end
-    git.addNewTag
+    git.addNewTagAction()
 end
 
 def whetherReleasePod(git)
@@ -126,46 +126,82 @@ def whetherReleasePod(git)
         git.exec
         exit
     end
-    git.podRelease
+    git.podReleaseAction()
 end
 
 def considerNextTask(beforeSeq, git)
     if beforeSeq == $seq_git_commit
-        whetherToPushMaster(git)
-        whetherAddNewTag(git)
-        whetherReleasePod(git)
-    elsif beforeSeq == $seq_git_push_master
-        whetherAddNewTag(git)
-        whetherReleasePod(git)
+        handleSeq($seq_git_push_current_branch)
+    elsif beforeSeq == $seq_git_push_current_branch
+        handleSeq($seq_git_add_tag)
     elsif beforeSeq == $seq_git_add_tag
-        whetherReleasePod(git)
+        handleSeq($seq_pod_release)
+    elsif beforeSeq == $seq_pod_updateSubspecVersion
+        handleSeq($seq_git_commit)
     end
 end
 
+seqs = [
+$seq_git_commit                 = "1. 提交变更",
+$seq_git_push_current_branch    = "2. 推送到当前分支(#{Git.getBranch()})",
+$seq_git_add_tag                = "3. 添加新的标签",
+$seq_pod_release                = "4. pod发布(pod repo push ..repo ..podspec)",
+$seq_git_delete_tag             = "5. 删除标签",
+$seq_pod_updateSubspecVersion   = "6. subspec版本+1",
+]
+
+other = [
+$seq_lazy_protocol              = "7. 自动写协议",
+$seq_lazy_property              = "8. 自动补全懒加载",
+]
+
+require "pp"
+
+# - seqs -
+puts "请输入操作序号:"
+pp seqs
+puts "\n"
+
+# - other -
+puts "补全代码:"
+pp other
+puts "\n"
+
+# - exit -
+puts "输入`exit`退出脚本"
+
+puts "\n"
+puts "\033[31m================== 等待操作 ==================\033[0m\n"
+
+seq = gets
+
+exit if seq.casecmp('exit') == 1
+
 def handleSeq(seq)
-    puts "\n\n"
-    
     git = Git.new
-    if seq == $seq_git_commit
-        git.commit
-    elsif seq == $seq_git_push_master
-        git.pushMaster
-    elsif seq == $seq_git_add_tag
-        git.addNewTag
-    elsif seq == $seq_pod_release
-        git.podRelease
-    elsif seq == $seq_git_delete_tag
-        git.deleteTag
-    elsif seq == $seq_lazy_protocol
+    if seq == $seq_git_commit.to_i
+        git.commitAction()
+    elsif seq == $seq_git_push_current_branch.to_i
+        git.pushAction()
+    elsif seq == $seq_git_add_tag.to_i
+        git.addNewTagAction()
+    elsif seq == $seq_pod_release.to_i
+        git.podReleaseAction()
+    elsif seq == $seq_git_delete_tag.to_i
+        git.deleteTagAction()
+    elsif seq == $seq_pod_updateSubspecVersion.to_i
+        Pods.updateSubspecVersion()
+    elsif seq == $seq_lazy_protocol.to_i
         require 'sjProtocol'
         exit
-    elsif seq == $seq_lazy_property
+    elsif seq == $seq_lazy_property.to_i
         require 'sjScript'
         exit
     end
-    
+
     considerNextTask(seq, git)
     git.exec
 end
 
+puts "\n\n"
 handleSeq(seq.to_i)
