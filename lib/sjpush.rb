@@ -20,7 +20,7 @@ class ActionHandler
         def updatePodspecVerAction()
             s = ActionHandler.getPodspec()
             if s.nil?
-                puts "已退出, 未搜索到 podspec 文件"
+                puts "\n已退出, 未搜索到 podspec 文件"
                 exit
             end
             
@@ -39,13 +39,13 @@ class ActionHandler
             file.syswrite(contents)
             file.close
             
-            puts "podspec 版本已更新"
+            puts "\npodspec 版本已更新"
         end
 
         def getPodspecVersion()
             s = ActionHandler.getPodspec()
             if s.nil?
-                puts "已退出, 未搜索到 podspec 文件"
+                puts "\n已退出, 未搜索到 podspec 文件"
                 exit
             end
             
@@ -64,7 +64,22 @@ class ActionHandler
     def initialize()
         @commands = String.new
     end
-    
+
+    def getSubmitInfo()
+        if @commitInfo.nil?
+            puts "\n请输入提交信息:"
+            @commitInfo = gets.strip!
+        end
+        return @commitInfo
+    end
+
+    def getCocoapodsRepo()
+        if @repo.nil?
+            puts "\n请输入仓库名:"
+            @repo = gets.strip!
+        end
+        return @repo
+    end
 
     # - Actions -
 
@@ -76,16 +91,8 @@ class ActionHandler
         end
     end
 
-    def submitInfoAction()
-        if @commitInfo.nil?
-            puts "请输入提交信息:"
-            @commitInfo = gets.strip!
-        end
-        return @commitInfo
-    end
-
     def commitAction()
-        submit = submitInfoAction()
+        submit = getSubmitInfo()
         addCommand "git add ."
         addCommand "git commit -m '#{submit}'"
     end
@@ -95,23 +102,23 @@ class ActionHandler
     end
     
     def addNewTagAction()
-        puts "请输入新的标签:"
+        puts "\n请输入新的标签:"
         newTag = gets.strip!
         
-        submit = submitInfoAction()
+        submit = getSubmitInfo()
         addCommand "git tag -a '#{newTag}' -m '#{submit}'"
         addCommand "git push origin #{newTag}"
     end
 
     def addNewTagForPodspecVersionAction()
         version = ActionHandler.getPodspecVersion()
-        submit = submitInfoAction()
+        submit = getSubmitInfo()
         addCommand "git tag -a '#{version}' -m '#{submit}'"
         addCommand "git push origin #{version}"
     end
     
     def deleteTagAction()
-        puts "请输入要删除的标签:"
+        puts "\n请输入要删除的标签:"
         tag = gets.strip!
         addCommand "git tag -d #{tag}"
         addCommand "git push origin :#{tag}"
@@ -120,10 +127,12 @@ class ActionHandler
     def podReleaseAction()
         s = ActionHandler.getPodspec()
         if s.nil?
-            puts "已退出, 未搜索到 podspec 文件"
+            puts "\n已退出, 未搜索到 podspec 文件"
             exit
         end
-        addCommand "pod repo push lanwuzheRepo #{s} --allow-warnings --use-libraries"
+        
+        repo = getCocoapodsRepo()
+        addCommand "pod repo push #{repo} #{s} --allow-warnings --use-libraries"
     end
 
     def executeCommands
@@ -136,7 +145,7 @@ class ActionHandler
         
         DESC
         system @commands
-        puts "操作完成"
+        puts "\n操作完成"
     end
 
 
@@ -165,6 +174,8 @@ class ActionHandler
         elsif seq == $seq_lazy_property.to_i
             require 'sjScript'
             exit
+        elsif seq = $seq_direct_release.to_i
+            directReleaseAction()
         end
         
         nextCommand(seq)
@@ -202,6 +213,16 @@ class ActionHandler
             end
         end
     end
+
+    # 一键发布
+    def directReleaseAction()
+        ActionHandler.updatePodspecVerAction()
+        getSubmitInfo()
+        commitAction()
+        pushAction()
+        addNewTagForPodspecVersionAction()
+        podReleaseAction()
+    end
 end
 
 seqs = [
@@ -213,9 +234,8 @@ $seq_release                = "4. pod发布(pod repo push ..repo ..podspec)",
 $seq_delete_tag             = "5. 删除标签",
 $seq_lazy_protocol          = "6. 自动写协议",
 $seq_lazy_property          = "7. 自动补全懒加载",
+$seq_direct_release         = "8. 一键发布"
 ]
-
-require "pp"
 
 # - seqs -
 puts "\n"
