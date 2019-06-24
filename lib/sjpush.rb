@@ -17,12 +17,18 @@ class ActionHandler
             Dir["*.podspec"].last
         end
 
-        def updatePodspecVerAction()
+        def searchPodspec()
             s = ActionHandler.getPodspec()
             if s.nil?
                 puts "\n已退出, 未搜索到 podspec 文件"
                 exit
             end
+            
+            return s
+        end
+
+        def updatePodspecVerAction()
+            s = searchPodspec()
             
             contents = String.new
             File.new(s, "r").each_line do |line|
@@ -43,21 +49,31 @@ class ActionHandler
         end
 
         def getPodspecVersion()
-            s = ActionHandler.getPodspec()
-            if s.nil?
-                puts "\n已退出, 未搜索到 podspec 文件"
-                exit
-            end
-            
+            s = searchPodspec()
+
             File.new(s, "r").each_line do |line|
-                regex = "s.version([^']+)'([^']+)'*"
+                regex = "s.version(?:[^']+)'([^']+)'*"
                 if /#{regex}/ =~ line
-                    @version = $2.to_i
+                    @version = $1.to_i
                     break
                 end
             end
             
             return @version
+        end
+
+        def getPodspecName()
+            s = searchPodspec()
+            
+            File.new(s, "r").each_line do |line|
+                regex = "s.name(?:[^']+)'([^']+)'*"
+                if /#{regex}/ =~ line
+                    @name = $1
+                    break
+                end
+            end
+            
+            return @name
         end
     end
 
@@ -111,10 +127,12 @@ class ActionHandler
     end
 
     def addNewTagForPodspecVersionAction()
-        version = ActionHandler.getPodspecVersion()
         submit = getSubmitInfo()
-        addCommand "git tag -a '#{version}' -m '#{submit}'"
-        addCommand "git push origin #{version}"
+        version = ActionHandler.getPodspecVersion()
+        name = ActionHandler.getPodspecName()
+        tag = "#{name}-#{version}"
+        addCommand "git tag -a '#{tag}' -m '#{submit}'"
+        addCommand "git push origin #{tag}"
     end
     
     def deleteTagAction()
@@ -125,14 +143,14 @@ class ActionHandler
     end
     
     def podReleaseAction()
-        s = ActionHandler.getPodspec()
-        if s.nil?
+        spec = ActionHandler.getPodspec()
+        if spec.nil?
             puts "\n已退出, 未搜索到 podspec 文件"
             exit
         end
         
         repo = getCocoapodsRepo()
-        addCommand "pod repo push #{repo} #{s} --allow-warnings --use-libraries"
+        addCommand "pod repo push #{repo} #{spec} --allow-warnings --use-libraries"
     end
 
     def executeCommands
