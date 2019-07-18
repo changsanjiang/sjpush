@@ -5,7 +5,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "sjpush"
-  spec.version       = "0.0.8"   #Sjpush::VERSION
+  spec.version       = "0.0.9"   #Sjpush::VERSION
   spec.authors       = ["SanJiang"]
   spec.email         = ["changsanjiang@gmail.com"]
 

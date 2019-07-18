@@ -150,7 +150,7 @@ class ActionHandler
         end
         
         repo = getCocoapodsRepo()
-        addCommand "pod repo push #{repo} #{spec} --allow-warnings --use-libraries"
+        addCommand "pod repo push #{repo} #{spec} --allow-warnings --use-libraries --verbose"
     end
 
     def executeCommands
