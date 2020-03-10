@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sjpush (0.0.9)
+    sjpush (0.0.10)
 
 GEM
   remote: https://rubygems.org/

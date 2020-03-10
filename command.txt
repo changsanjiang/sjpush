@@ -1,0 +1,2 @@
+gem build #name#-#version#.gem
+gem push #name#-#version#.gem
